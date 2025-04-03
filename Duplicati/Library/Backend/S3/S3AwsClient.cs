@@ -43,13 +43,14 @@ namespace Duplicati.Library.Backend
         private readonly string? m_storageClass;
         private readonly AmazonS3Client m_client;
         private readonly bool m_useChunkEncoding;
+        private readonly bool m_tagDblock;
 
         private readonly string? m_dnsHost;
         private readonly bool m_useV2ListApi;
         private readonly TimeoutOptionsHelper.Timeouts m_timeouts;
 
         public S3AwsClient(string awsID, string awsKey, string? locationConstraint, string servername,
-            string? storageClass, bool useSSL, bool disableChunkEncoding, TimeoutOptionsHelper.Timeouts timeouts, Dictionary<string, string?> options)
+            string? storageClass, bool useSSL, bool disableChunkEncoding, bool tagDblock, TimeoutOptionsHelper.Timeouts timeouts, Dictionary<string, string?> options)
         {
             var cfg = GetDefaultAmazonS3Config();
             cfg.UseHttp = !useSSL;
@@ -65,6 +66,7 @@ namespace Duplicati.Library.Backend
             m_storageClass = storageClass;
             m_dnsHost = string.IsNullOrWhiteSpace(cfg.ServiceURL) ? null : new System.Uri(cfg.ServiceURL).Host;
             m_useChunkEncoding = !disableChunkEncoding;
+            m_tagDblock = tagDblock;
         }
 
         public Task AddBucketAsync(string bucketName, CancellationToken cancelToken)
@@ -161,6 +163,9 @@ namespace Duplicati.Library.Backend
             };
             if (!string.IsNullOrWhiteSpace(m_storageClass))
                 objectAddRequest.StorageClass = new S3StorageClass(m_storageClass);
+
+            if (m_tagDblock && keyName.Contains("dblock"))
+                objectAddRequest.TagSet.Add(new Tag { Key = "DuplicatiFileType", Value = "dblock" });
 
             try
             {

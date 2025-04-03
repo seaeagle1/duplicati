@@ -42,6 +42,7 @@ namespace Duplicati.Library.Backend
         private const string S3_DISABLE_CHUNK_ENCODING_OPTION = "s3-disable-chunk-encoding";
         private const string S3_LIST_API_VERSION_OPTION = "s3-list-api-version";
         private const string S3_RECURSIVE_LIST = "s3-recursive-list";
+        private const string S3_TAG_DBLOCK_FILES = "s3-tag-dblock";
 
         public static readonly Dictionary<string, string> KNOWN_S3_PROVIDERS = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
             { "Amazon S3", "s3.amazonaws.com" },
@@ -224,6 +225,7 @@ namespace Duplicati.Library.Backend
                 m_prefix = Util.AppendDirSeparator(m_prefix, "/");
 
             m_recurseLists = Utility.Utility.ParseBoolOption(options, S3_RECURSIVE_LIST);
+            var tagDblock = Utility.Utility.ParseBoolOption(options, S3_TAG_DBLOCK_FILES);
 
             // Auto-disable DNS lookup for non-AWS configurations
             if (!options.ContainsKey("s3-ext-forcepathstyle") && !hostname.EndsWith(".amazonaws.com", StringComparison.OrdinalIgnoreCase))
@@ -236,7 +238,7 @@ namespace Duplicati.Library.Backend
             (var awsID, var awsKey) = auth.GetCredentials();
             if (string.IsNullOrWhiteSpace(s3ClientOptionValue) || string.Equals(s3ClientOptionValue, "aws", StringComparison.OrdinalIgnoreCase))
             {
-                m_s3Client = new S3AwsClient(awsID, awsKey, locationConstraint, hostname, storageClass, useSSL, disableChunkEncoding, timeout, options);
+                m_s3Client = new S3AwsClient(awsID, awsKey, locationConstraint, hostname, storageClass, useSSL, disableChunkEncoding, tagDblock, timeout, options);
             }
             else if (string.Equals(s3ClientOptionValue, "minio", StringComparison.OrdinalIgnoreCase))
             {
@@ -325,6 +327,7 @@ namespace Duplicati.Library.Backend
                     new CommandLineArgument(S3_DISABLE_CHUNK_ENCODING_OPTION, CommandLineArgument.ArgumentType.Boolean, Strings.S3Backend.DescriptionDisableChunkEncodingShort, Strings.S3Backend.DescriptionDisableChunkEncodingLong, "false"),
                     new CommandLineArgument(S3_LIST_API_VERSION_OPTION, CommandLineArgument.ArgumentType.Enumeration, Strings.S3Backend.DescriptionListApiVersionShort, Strings.S3Backend.DescriptionListApiVersionLong, "v1", null, ["v1", "v2"]),
                     new CommandLineArgument(S3_RECURSIVE_LIST, CommandLineArgument.ArgumentType.Boolean, Strings.S3Backend.DescriptionRecursiveListShort, Strings.S3Backend.DescriptionRecursiveListLong, "false"),
+                    new CommandLineArgument(S3_TAG_DBLOCK_FILES, CommandLineArgument.ArgumentType.Boolean, Strings.S3Backend.DescriptionTagBlockFilesShort, Strings.S3Backend.DescriptionTagBlockFilesLong, "false"),
                     .. TimeoutOptionsHelper.GetOptions(),
                     .. exts
                 ];

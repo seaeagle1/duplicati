@@ -53,6 +53,8 @@ namespace Duplicati.Library.Backend.Strings
         public static string DescriptionListApiVersionLong { get { return LC.L(@"Use this option to specify the S3 list API version to use. This can be used to work around issues with some S3 providers."); } }
         public static string DescriptionRecursiveListShort { get { return LC.L(@"Use this option to list all files in the bucket"); } }
         public static string DescriptionRecursiveListLong { get { return LC.L(@"To reduce the number of objects listed, the default is to only list the first level of objects. Use this option to list all objects in the bucket."); } }
+        public static string DescriptionTagBlockFilesShort { get { return LC.L(@"Use this option to tag dblock files for specific policies"); } }
+        public static string DescriptionTagBlockFilesLong { get { return LC.L(@"To allow specific lifecycle policies, dblock files will be tagged with a DuplicatiFileType=dblock tag"); } }
         public static string UnknownS3ClientError(string client) { return LC.L(@"Unknown S3 client: {0}", client); }
     }
 
