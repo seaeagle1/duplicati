@@ -43,6 +43,7 @@ namespace Duplicati.Library.Backend
         private const string SSL_OPTION = "use-ssl";
         private const string S3_CLIENT_OPTION = "s3-client";
         private const string S3_DISABLE_CHUNK_ENCODING_OPTION = "s3-disable-chunk-encoding";
+        private const string S3_TAG_DBLOCK_FILES = "s3-tag-dblock";
 
         public static readonly Dictionary<string, string> KNOWN_S3_PROVIDERS = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
             { "Amazon S3", "s3.amazonaws.com" },
@@ -225,6 +226,8 @@ namespace Duplicati.Library.Backend
             if (m_prefix.Length != 0)
                 m_prefix = Util.AppendDirSeparator(m_prefix, "/");
 
+            var tagDblock = Utility.Utility.ParseBoolOption(options, S3_TAG_DBLOCK_FILES);
+
             // Auto-disable DNS lookup for non-AWS configurations
             if (!options.ContainsKey("s3-ext-forcepathstyle") && !hostname.EndsWith(".amazonaws.com", StringComparison.OrdinalIgnoreCase))
                 options["s3-ext-forcepathstyle"] = "true";
@@ -235,7 +238,7 @@ namespace Duplicati.Library.Backend
 
             if (string.IsNullOrWhiteSpace(s3ClientOptionValue) || string.Equals(s3ClientOptionValue, "aws", StringComparison.OrdinalIgnoreCase))
             {
-                s3Client = new S3AwsClient(awsID, awsKey, locationConstraint, hostname, storageClass, useSSL, disableChunkEncoding, options);
+                s3Client = new S3AwsClient(awsID, awsKey, locationConstraint, hostname, storageClass, useSSL, disableChunkEncoding, tagDblock, options);
             }
             else if (string.Equals(s3ClientOptionValue, "minio", StringComparison.OrdinalIgnoreCase))
             {
@@ -336,6 +339,7 @@ namespace Duplicati.Library.Backend
                     new CommandLineArgument(S3_DISABLE_CHUNK_ENCODING_OPTION, CommandLineArgument.ArgumentType.Boolean, Strings.S3Backend.DescriptionDisableChunkEncodingShort, Strings.S3Backend.DescriptionDisableChunkEncodingLong, "false"),
                     new CommandLineArgument("auth-password", CommandLineArgument.ArgumentType.Password, Strings.S3Backend.AuthPasswordDescriptionShort, Strings.S3Backend.AuthPasswordDescriptionLong),
                     new CommandLineArgument("auth-username", CommandLineArgument.ArgumentType.String, Strings.S3Backend.AuthUsernameDescriptionShort, Strings.S3Backend.AuthUsernameDescriptionLong),
+                    new CommandLineArgument(S3_TAG_DBLOCK_FILES, CommandLineArgument.ArgumentType.Boolean, Strings.S3Backend.DescriptionTagBlockFilesShort, Strings.S3Backend.DescriptionTagBlockFilesLong, "false"),
                 };
 
                 return normal.Union(exts).ToList();
