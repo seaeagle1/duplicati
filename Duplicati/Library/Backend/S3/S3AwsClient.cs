@@ -48,11 +48,12 @@ namespace Duplicati.Library.Backend
         private AmazonS3Client m_client;
         private readonly bool m_useChunkEncoding;
         private readonly bool m_tagDblock;
+        private readonly GlacierJobTier m_restoreTier;
 
         private readonly string m_dnsHost;
 
         public S3AwsClient(string awsID, string awsKey, string locationConstraint, string servername,
-            string storageClass, bool useSSL, bool disableChunkEncoding, bool tagDblock, Dictionary<string, string> options)
+            string storageClass, bool useSSL, bool disableChunkEncoding, bool tagDblock, string restoreTier, Dictionary<string, string> options)
         {
             var cfg = S3AwsClient.GetDefaultAmazonS3Config();
             cfg.UseHttp = !useSSL;
@@ -67,6 +68,7 @@ namespace Duplicati.Library.Backend
             m_dnsHost = string.IsNullOrWhiteSpace(cfg.ServiceURL) ? null : new System.Uri(cfg.ServiceURL).Host;
             m_useChunkEncoding = !disableChunkEncoding;
             m_tagDblock = tagDblock;
+            m_restoreTier = restoreTier;
         }
 
         public Task AddBucketAsync(string bucketName, CancellationToken cancelToken)
@@ -126,6 +128,45 @@ namespace Duplicati.Library.Backend
         {
             try
             {
+                bool objectNeedsRestore = false;
+                if(m_restoreTier != null) 
+                {
+                    // check if object needs to be restored
+                    var objectAttributeGetRequest = new GetObjectAttributesRequest
+                    {
+                        BucketName = bucketName,
+                        Key = keyName
+                    };
+
+                    var objectAttributeResponse = await m_client.GetObjectAttributesAsync(objectAttributeGetRequest).ConfigureAwait(false);
+                    if (objectAttributeResponse.StorageClass == S3StorageClass.Glacier ||
+                        objectAttributeResponse.StorageClass == S3StorageClass.DeepArchive)
+                    {
+                        objectNeedsRestore = true;
+                    }
+                }
+
+                if (objectNeedsRestore)
+                {
+                    // restore object
+                    var objectRestoreRequest = new RestoreObjectRequest
+                    {
+                        BucketName = bucketName,
+                        Key = keyName,
+                        Tier = m_restoreTier
+                    };
+
+                    var objectRestoreReponse = await m_client.RestoreObjectAsync(objectRestoreRequest).ConfigureAwait(false);
+                    if (objectRestoreReponse.HttpStatusCode == System.Net.HttpStatusCode.Accepted)
+                    {
+                        throw new FileMissingException(string.Format("File {0} is queued for restore", keyName));
+                    } else if (objectRestoreReponse.HttpStatusCode == System.Net.HttpStatusCode.Conflict)
+                    {
+                        throw new FileMissingException(string.Format("File {0} restore is already in progress", keyName));
+                    }
+                }
+
+                // retrieve object
                 var objectGetRequest = new GetObjectRequest
                 {
                     BucketName = bucketName,

@@ -19,6 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 // DEALINGS IN THE SOFTWARE.
 
+using Amazon.S3;
 using Duplicati.Library.Common.IO;
 using Duplicati.Library.Interface;
 using Duplicati.Library.Utility;
@@ -44,6 +45,7 @@ namespace Duplicati.Library.Backend
         private const string S3_CLIENT_OPTION = "s3-client";
         private const string S3_DISABLE_CHUNK_ENCODING_OPTION = "s3-disable-chunk-encoding";
         private const string S3_TAG_DBLOCK_FILES = "s3-tag-dblock";
+        private const string S3_RESTORE_TIER = "s3-restore-tier";
 
         public static readonly Dictionary<string, string> KNOWN_S3_PROVIDERS = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
             { "Amazon S3", "s3.amazonaws.com" },
@@ -228,6 +230,19 @@ namespace Duplicati.Library.Backend
 
             var tagDblock = Utility.Utility.ParseBoolOption(options, S3_TAG_DBLOCK_FILES);
 
+             
+            GlacierJobTier restoreTier = null;
+            string restoreTierOptionValue;
+            if (options.TryGetValue(S3_RESTORE_TIER, out restoreTierOptionValue))
+            {
+                if (string.Equals(restoreTierOptionValue, "bulk", StringComparison.OrdinalIgnoreCase))
+                    restoreTier = GlacierJobTier.Bulk;
+                else if (string.Equals(restoreTierOptionValue, "standard", StringComparison.OrdinalIgnoreCase))
+                    restoreTier = GlacierJobTier.Standard;
+                else if (string.Equals(restoreTierOptionValue, "expedited", StringComparison.OrdinalIgnoreCase))
+                    restoreTier = GlacierJobTier.Expedited;
+            }
+
             // Auto-disable DNS lookup for non-AWS configurations
             if (!options.ContainsKey("s3-ext-forcepathstyle") && !hostname.EndsWith(".amazonaws.com", StringComparison.OrdinalIgnoreCase))
                 options["s3-ext-forcepathstyle"] = "true";
@@ -238,7 +253,7 @@ namespace Duplicati.Library.Backend
 
             if (string.IsNullOrWhiteSpace(s3ClientOptionValue) || string.Equals(s3ClientOptionValue, "aws", StringComparison.OrdinalIgnoreCase))
             {
-                s3Client = new S3AwsClient(awsID, awsKey, locationConstraint, hostname, storageClass, useSSL, disableChunkEncoding, tagDblock, options);
+                s3Client = new S3AwsClient(awsID, awsKey, locationConstraint, hostname, storageClass, useSSL, disableChunkEncoding, tagDblock, restoreTier, options);
             }
             else if (string.Equals(s3ClientOptionValue, "minio", StringComparison.OrdinalIgnoreCase))
             {
@@ -340,6 +355,7 @@ namespace Duplicati.Library.Backend
                     new CommandLineArgument("auth-password", CommandLineArgument.ArgumentType.Password, Strings.S3Backend.AuthPasswordDescriptionShort, Strings.S3Backend.AuthPasswordDescriptionLong),
                     new CommandLineArgument("auth-username", CommandLineArgument.ArgumentType.String, Strings.S3Backend.AuthUsernameDescriptionShort, Strings.S3Backend.AuthUsernameDescriptionLong),
                     new CommandLineArgument(S3_TAG_DBLOCK_FILES, CommandLineArgument.ArgumentType.Boolean, Strings.S3Backend.DescriptionTagBlockFilesShort, Strings.S3Backend.DescriptionTagBlockFilesLong, "false"),
+                    new CommandLineArgument(S3_RESTORE_TIER, CommandLineArgument.ArgumentType.Enumeration, Strings.S3Backend.RestoreTierDescriptionShort, Strings.S3Backend.RestoreTierDescriptionLong, "standard", null, new string[] { "standard", "bulk", "expedited" }),
                 };
 
                 return normal.Union(exts).ToList();
