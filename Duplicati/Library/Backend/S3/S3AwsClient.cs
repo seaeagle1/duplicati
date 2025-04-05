@@ -128,43 +128,6 @@ namespace Duplicati.Library.Backend
         {
             try
             {
-                bool objectNeedsRestore = false;
-                if(m_restoreTier != null) 
-                {
-                    // check if object needs to be restored
-                    var objectAttributeGetRequest = new GetObjectAttributesRequest
-                    {
-                        BucketName = bucketName,
-                        Key = keyName
-                    };
-
-                    var objectAttributeResponse = await m_client.GetObjectAttributesAsync(objectAttributeGetRequest).ConfigureAwait(false);
-                    if (objectAttributeResponse.StorageClass == S3StorageClass.Glacier ||
-                        objectAttributeResponse.StorageClass == S3StorageClass.DeepArchive)
-                    {
-                        objectNeedsRestore = true;
-                    }
-                }
-
-                if (objectNeedsRestore)
-                {
-                    // restore object
-                    var objectRestoreRequest = new RestoreObjectRequest
-                    {
-                        BucketName = bucketName,
-                        Key = keyName,
-                        Tier = m_restoreTier
-                    };
-
-                    var objectRestoreReponse = await m_client.RestoreObjectAsync(objectRestoreRequest).ConfigureAwait(false);
-                    if (objectRestoreReponse.HttpStatusCode == System.Net.HttpStatusCode.Accepted)
-                    {
-                        throw new FileMissingException(string.Format("File {0} is queued for restore", keyName));
-                    } else if (objectRestoreReponse.HttpStatusCode == System.Net.HttpStatusCode.Conflict)
-                    {
-                        throw new FileMissingException(string.Format("File {0} restore is already in progress", keyName));
-                    }
-                }
 
                 // retrieve object
                 var objectGetRequest = new GetObjectRequest
@@ -187,8 +150,34 @@ namespace Duplicati.Library.Backend
             {
                 if (s3Ex.StatusCode == System.Net.HttpStatusCode.NotFound)
                     throw new FileMissingException(string.Format("File {0} not found", keyName), s3Ex);
-            }
 
+                if (s3Ex.StatusCode == System.Net.HttpStatusCode.Forbidden
+                    && s3Ex.ErrorCode == "InvalidObjectState")
+                { // object is in Archival tier and needs Restore
+                    if (m_restoreTier == null)
+                        throw new FileMissingException(string.Format("File {0} is archived and not available", keyName), s3Ex);
+                    else
+                    {
+                        // restore object
+                        var objectRestoreRequest = new RestoreObjectRequest
+                        {
+                            BucketName = bucketName,
+                            Key = keyName,
+                            Tier = m_restoreTier
+                        };
+
+                        var objectRestoreReponse = await m_client.RestoreObjectAsync(objectRestoreRequest).ConfigureAwait(false);
+                        if (objectRestoreReponse.HttpStatusCode == System.Net.HttpStatusCode.Accepted)
+                        {
+                            throw new FileMissingException(string.Format("File {0} is queued for restore", keyName));
+                        }
+                        else if (objectRestoreReponse.HttpStatusCode == System.Net.HttpStatusCode.Conflict)
+                        {
+                            throw new FileMissingException(string.Format("File {0} restore is already in progress", keyName));
+                        }
+                    }
+                }
+            }
         }
 
         public string GetDnsHost()
