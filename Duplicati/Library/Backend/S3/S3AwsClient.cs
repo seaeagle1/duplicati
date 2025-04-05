@@ -47,13 +47,12 @@ namespace Duplicati.Library.Backend
         private readonly string m_storageClass;
         private AmazonS3Client m_client;
         private readonly bool m_useChunkEncoding;
-        private readonly bool m_tagDblock;
         private readonly GlacierJobTier m_restoreTier;
 
         private readonly string m_dnsHost;
 
         public S3AwsClient(string awsID, string awsKey, string locationConstraint, string servername,
-            string storageClass, bool useSSL, bool disableChunkEncoding, bool tagDblock, string restoreTier, Dictionary<string, string> options)
+            string storageClass, bool useSSL, bool disableChunkEncoding, GlacierJobTier restoreTier, Dictionary<string, string> options)
         {
             var cfg = S3AwsClient.GetDefaultAmazonS3Config();
             cfg.UseHttp = !useSSL;
@@ -67,7 +66,6 @@ namespace Duplicati.Library.Backend
             m_storageClass = storageClass;
             m_dnsHost = string.IsNullOrWhiteSpace(cfg.ServiceURL) ? null : new System.Uri(cfg.ServiceURL).Host;
             m_useChunkEncoding = !disableChunkEncoding;
-            m_tagDblock = tagDblock;
             m_restoreTier = restoreTier;
         }
 
@@ -197,9 +195,6 @@ namespace Duplicati.Library.Backend
             };
             if (!string.IsNullOrWhiteSpace(m_storageClass))
                 objectAddRequest.StorageClass = new S3StorageClass(m_storageClass);
-
-            if (m_tagDblock && keyName.Contains("dblock"))
-                objectAddRequest.TagSet.Add(new Tag { Key = "DuplicatiFileType", Value = "dblock" });
 
             try
             {

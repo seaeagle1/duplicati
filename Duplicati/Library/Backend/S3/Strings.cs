@@ -49,8 +49,6 @@ namespace Duplicati.Library.Backend.Strings
         public static string DescriptionDisableChunkEncodingShort { get { return LC.L(@"Disable chunk encoding (aws client only)"); } }
         public static string S3StorageclassDescriptionLong { get { return LC.L(@"Use this option to specify a storage class. If this option is not used, the server will choose a default storage class."); } }
         public static string S3StorageclassDescriptionShort { get { return LC.L(@"Specify storage class"); } }
-        public static string DescriptionTagBlockFilesShort { get { return LC.L(@"Use this option to tag dblock files for specific policies"); } }
-        public static string DescriptionTagBlockFilesLong { get { return LC.L(@"To allow specific lifecycle policies, dblock files will be tagged with a DuplicatiFileType=dblock tag"); } }
         public static string RestoreTierDescriptionShort { get { return LC.L(@"Set this option to issue Restore commands for files in Glacier/Deep Storage"); } }
         public static string RestoreTierDescriptionLong { get { return LC.L(@"Files that are needed but stored in Glacier/Deep Storage Class will be restored to Standard Class with the specified Tier instead of downloaded. Repeat the operation after the Restore has completed, to allow Duplicati to download the files. Note that AWS charges for the total size of Restore commands issued within a timeframe."); } }
         public static string UnknownS3ClientError(string client) { return LC.L(@"Unknown S3 client: {0}", client); }
